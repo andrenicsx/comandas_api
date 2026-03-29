@@ -31,3 +31,16 @@ DELETE http://127.0.0.1:8000/funcionario/3 HTTP/1.1
 ### Verbo GET - listar todos
 GET http://localhost:8000/funcionario/ HTTP/1.1
 
+### Criar Funcionário do Grupo 3 (Caixa)
+POST http://localhost:8000/funcionario/
+Content-Type: application/json
+
+{
+    "nome": "Marcos Caixa",
+    "matricula": "CX001",
+    "cpf": "33333333333",
+    "telefone": "4988887777",
+    "grupo": 3,
+    "senha": "senha_caixa_abc"
+}
+
