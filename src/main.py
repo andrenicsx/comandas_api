@@ -3,6 +3,7 @@ from settings import HOST, PORT, RELOAD
 import uvicorn
 
 # import das classes com as rotas/endpoints
+from app import AuthRouter
 from app import FuncionarioRouter
 from app import ClienteRouter
 from app import ProdutoRouter
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
     # executa no shutdown
     print("API is shutting down")
 
+
 # cria a aplicação FastAPI com o contexto de vida
 app = FastAPI(lifespan=lifespan)
 
@@ -30,12 +32,18 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/", tags=["Root"], status_code=200)
 async def root():
-    return {"detail": "API Pastelaria", "Swagger UI": "http://127.0.0.1:8000/docs", "ReDoc": "http://127.0.0.1:8000/redoc"}
+    return {
+        "detail": "API Pastelaria",
+        "Swagger UI": "http://127.0.0.1:8000/docs",
+        "ReDoc": "http://127.0.0.1:8000/redoc",
+    }
+
 
 # incluir as rotas/endpoints no FastAPI
+app.include_router(AuthRouter.router)
 app.include_router(FuncionarioRouter.router)
 app.include_router(ClienteRouter.router)
 app.include_router(ProdutoRouter.router)
 
 if __name__ == "__main__":
-    uvicorn.run('main:app', host=HOST, port=int(PORT), reload=RELOAD)
+    uvicorn.run("main:app", host=HOST, port=int(PORT), reload=RELOAD)

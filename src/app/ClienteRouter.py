@@ -8,23 +8,30 @@ from domain.schemas.ClienteSchema import (
     ClienteResponse,
     ClienteUpdate
 )
+from domain.schemas.AuthSchema import FuncionarioAuth
 
 # ORM
 from infra.orm.ClienteModel import ClienteDB
 
 # Database
 from infra.database import get_db
+from infra.dependencies import get_current_active_user, require_group
 
 router = APIRouter()
+
 
 # GET TODOS CLIENTES
 @router.get(
     "/cliente/",
     response_model=List[ClienteResponse],
     tags=["Cliente"],
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    
 )
-async def get_clientes(db: Session = Depends(get_db)):
+async def get_clientes(
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(get_current_active_user),
+):
     try:
         clientes = db.query(ClienteDB).all()
         return clientes
@@ -72,7 +79,11 @@ async def get_cliente(id: int, db: Session = Depends(get_db)):
     tags=["Cliente"],
     status_code=status.HTTP_201_CREATED
 )
-async def post_cliente(cliente_data: ClienteCreate, db: Session = Depends(get_db)):
+async def post_cliente(
+    cliente_data: ClienteCreate,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(require_group([1, 3])),
+):
 
     try:
 
@@ -118,7 +129,12 @@ async def post_cliente(cliente_data: ClienteCreate, db: Session = Depends(get_db
     tags=["Cliente"],
     status_code=status.HTTP_200_OK
 )
-async def put_cliente(id: int, cliente_data: ClienteUpdate, db: Session = Depends(get_db)):
+async def put_cliente(
+    id: int,
+    cliente_data: ClienteUpdate,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(require_group([1, 3])),
+):
 
     try:
 
@@ -174,7 +190,12 @@ async def put_cliente(id: int, cliente_data: ClienteUpdate, db: Session = Depend
     status_code=status.HTTP_200_OK
 )
 
-async def delete_cliente(id: int, db: Session = Depends(get_db)):
+
+async def delete_cliente(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(require_group([1])),
+):
     """Remove um cliente"""
     try:
 
@@ -192,7 +213,7 @@ async def delete_cliente(id: int, db: Session = Depends(get_db)):
         db.commit()
 
         return {"message": "Cliente deletado com sucesso"}
-    
+
     except HTTPException:
         raise
     except Exception as e:

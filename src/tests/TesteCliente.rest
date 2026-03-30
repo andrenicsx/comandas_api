@@ -1,5 +1,9 @@
 ### Listar todos os Clientes (GET)
 GET http://localhost:8000/cliente/ HTTP/1.1
+Authorization: Bearer {{refresh_token}}
+
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwMiIsImlkIjo0LCJncnVwbyI6MSwiZXhwIjoxNzc0ODQyNTY4LCJ0eXBlIjoiYWNjZXNzIn0.etyR6zc8BNcb5-XaxR9JCBZDIznUQIRBEVwTQ_xjuFs
+
 
 ### Adicionar Cliente (POST)
 POST http://localhost:8000/cliente/ HTTP/1.1
@@ -14,6 +18,7 @@ Content-Type: application/json
 ### Atualizar Cliente (PUT)
 PUT http://localhost:8000/cliente/1 HTTP/1.1
 Content-Type: application/json
+Authorization: Bearer {{refresh_token}}
 
 {
   "nome": "André Coelho (Cliente)",
@@ -21,5 +26,52 @@ Content-Type: application/json
   "telefone": "98888-7777"
 }
 
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwMiIsImlkIjo0LCJncnVwbyI6MSwiZXhwIjoxNzc0ODQyNTY4LCJ0eXBlIjoiYWNjZXNzIn0.etyR6zc8BNcb5-XaxR9JCBZDIznUQIRBEVwTQ_xjuFs
+
+
 ### Excluir Cliente (DELETE)
 DELETE http://localhost:8000/cliente/1 HTTP/1.1
+
+
+### Usar refresh token para obter novos tokens
+POST http://localhost:8000/auth/refresh
+Content-Type: application/json
+
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMjIyMjIyMjIyMiIsImlkIjoyLCJncnVwbyI6MiwiZXhwIjoxNzc1NDQyNzU1LCJ0eXBlIjoicmVmcmVzaCJ9.wP5e1cVTt4IRpuk-WA5Vtj_ESH9-oVayCcoldb0jZY0
+
+{
+"refresh_token": "{{refresh_token}}"
+}
+
+# token
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMzMzMzMzMzMzMyIsImlkIjozLCJncnVwbyI6MywiZXhwIjoxNzc0ODM5NTU4LCJ0eXBlIjoiYWNjZXNzIn0.vvzbcuBX31OEd12sIOQcK5tZwKGh-v5-4irk0CfRlVg
+
+### Listar todos os clientes (Protegida - Qualquer grupo logado)
+GET http://localhost:8000/cliente/
+Authorization: Bearer {{access_token}}
+
+### Adicionar novo cliente (Protegida - Grupos 1 e 3)
+POST http://localhost:8000/cliente/
+Content-Type: application/json
+Authorization: Bearer {{refresh_token}}
+
+{
+  "nome": "André Granemann",
+  "cpf": "12345678903",
+  "telefone": "49988887777"
+}
+
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwMiIsImlkIjo0LCJncnVwbyI6MSwiZXhwIjoxNzc1NDQ2ODMxLCJ0eXBlIjoicmVmcmVzaCJ9.lpbZMMSNsIYRG3xPxq8Hz3Li7k6UM5-2Pg-6qLGRPFo
+
+### Atualizar cliente (Protegida - Grupos 1 e 3)
+PUT http://localhost:8000/cliente/1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "nome": "André Granemann"
+}
+
+### Excluir cliente (Protegida - APENAS GRUPO 1)
+DELETE http://localhost:8000/cliente/1
+Authorization: Bearer {{access_token}}
