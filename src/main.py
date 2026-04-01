@@ -1,3 +1,5 @@
+# André Nícolas Granemann Coelho
+
 from fastapi import FastAPI
 from settings import HOST, PORT, RELOAD
 import uvicorn

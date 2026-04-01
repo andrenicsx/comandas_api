@@ -50,7 +50,11 @@ async def get_clientes(
     tags=["Cliente"],
     status_code=status.HTTP_200_OK
 )
-async def get_cliente(id: int, db: Session = Depends(get_db)):
+async def get_cliente(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(get_current_active_user),
+):
 
     try:
         cliente = db.query(ClienteDB).filter(ClienteDB.id == id).first()

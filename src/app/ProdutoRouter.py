@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 # Schemas
+from domain.schemas.AuthSchema import FuncionarioAuth
 from domain.schemas.ProdutoSchema import (
     ProdutoCreate,
     ProdutoUpdate,
@@ -11,6 +12,7 @@ from domain.schemas.ProdutoSchema import (
 
 # ORM
 from infra.orm.ProdutoModel import ProdutoDB
+from infra.dependencies import get_current_active_user, require_group
 
 # Database
 from infra.database import get_db
@@ -74,7 +76,11 @@ async def get_produto(id: int, db: Session = Depends(get_db)):
     tags=["Produto"],
     status_code=status.HTTP_201_CREATED
 )
-async def post_produto(produto_data: ProdutoCreate, db: Session = Depends(get_db)):
+async def post_produto(
+    produto_data: ProdutoCreate,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(require_group([1])),
+):
 
     try:
 
@@ -109,7 +115,12 @@ async def post_produto(produto_data: ProdutoCreate, db: Session = Depends(get_db
     tags=["Produto"],
     status_code=status.HTTP_200_OK
 )
-async def put_produto(id: int, produto_data: ProdutoUpdate, db: Session = Depends(get_db)):
+async def put_produto(
+    id: int,
+    produto_data: ProdutoUpdate,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(require_group([1])),
+):
 
     try:
 
@@ -151,7 +162,11 @@ async def put_produto(id: int, produto_data: ProdutoUpdate, db: Session = Depend
     tags=["Produto"],
     status_code=status.HTTP_200_OK
 )
-async def delete_produto(id: int, db: Session = Depends(get_db)):
+async def delete_produto(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: FuncionarioAuth = Depends(require_group([1])),
+):
 
     try:
 
