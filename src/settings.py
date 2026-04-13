@@ -1,11 +1,13 @@
 from dotenv import load_dotenv, find_dotenv
 import os
-
+from pathlib import Path
 # localiza o arquivo de .env
 dotenv_file = find_dotenv()
 
 # Carrega o arquivo .env
 load_dotenv(dotenv_file)
+
+BASE_DIR = Path(__file__).resolve().parent
 
 # Configurações da API
 HOST = os.getenv("HOST")
@@ -22,16 +24,12 @@ DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 
 # Ajusta STR_DATABASE conforme gerenciador escolhido
-if DB_SGDB == 'sqlite': # SQLite
-  STR_DATABASE = f"sqlite:///{DB_NAME}.db"
-elif DB_SGDB == 'mysql': # MySQL
-  import pymysql
-  STR_DATABASE = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}?charset=utf8mb4"
-elif DB_SGDB == 'mssql': # SQL Server
-  import pymssql
-  STR_DATABASE = f"mssql+pymssql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}?charset=utf8"
-else: # SQLite
-  STR_DATABASE = f"sqlite:///apiDatabase.db?foreign_keys=1"
+if DB_SGDB == "sqlite":
+    # Cria um caminho absoluto para o arquivo .db
+    DB_PATH = BASE_DIR / f"{DB_NAME}.db"
+    STR_DATABASE = f"sqlite:///{DB_PATH}"
+    print(f"--- BANCO DE DADOS EM: {DB_PATH} ---")
+    print(f"--- DATABASE LOCAL: {STR_DATABASE} ---")
 
 # Configurações JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "d6cf05df57c5fe76a488f84827a35851c0b718e465b478937fc97a95a0fd7a01")

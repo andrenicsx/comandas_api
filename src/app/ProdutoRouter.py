@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
+from infra.rate_limit import limiter, get_rate_limit
+from services.AuditoriaService import AuditoriaService
 
 # Schemas
 from domain.schemas.AuthSchema import FuncionarioAuth
@@ -157,13 +159,12 @@ async def put_produto(
 
 
 # DELETE PRODUTO
-@router.delete(
-    "/produto/{id}",
-    tags=["Produto"],
-    status_code=status.HTTP_200_OK
-)
+@router.delete("/produto/{id}", tags=["Produto"], status_code=status.HTTP_200_OK)
+@limiter.limit(get_rate_limit("critical"))
+
 async def delete_produto(
     id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: FuncionarioAuth = Depends(require_group([1])),
 ):
@@ -180,8 +181,19 @@ async def delete_produto(
                 detail="Produto não encontrado"
             )
 
+        dados_antigos = produto.__dict__.copy()
         db.delete(produto)
         db.commit()
+
+        AuditoriaService.registrar_acao(
+            db=db,
+            funcionario_id=current_user.id,
+            acao="DELETE",
+            recurso="PRODUTO",
+            recurso_id=id,
+            dados_antigos=dados_antigos,
+            request=request,
+        )
 
         return {"message": "Produto excluído com sucesso"}
 

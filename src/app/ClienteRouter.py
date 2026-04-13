@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -16,6 +16,8 @@ from infra.orm.ClienteModel import ClienteDB
 # Database
 from infra.database import get_db
 from infra.dependencies import get_current_active_user, require_group
+from infra.rate_limit import limiter, get_rate_limit
+from services.AuditoriaService import AuditoriaService
 
 router = APIRouter()
 
@@ -131,10 +133,13 @@ async def post_cliente(
     "/cliente/{id}",
     response_model=ClienteResponse,
     tags=["Cliente"],
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
 )
+@limiter.limit(get_rate_limit("moderate"))
+
 async def put_cliente(
     id: int,
+    request: Request,
     cliente_data: ClienteUpdate,
     db: Session = Depends(get_db),
     current_user: FuncionarioAuth = Depends(require_group([1, 3])),
@@ -165,6 +170,7 @@ async def put_cliente(
                     detail="Já existe cliente com este CPF"
                 )
 
+        dados_antigos = cliente.__dict__.copy()
         update_data = cliente_data.model_dump(exclude_unset=True)
 
         for field, value in update_data.items():
@@ -172,6 +178,17 @@ async def put_cliente(
 
         db.commit()
         db.refresh(cliente)
+
+        AuditoriaService.registrar_acao(
+            db=db,
+            funcionario_id=current_user.id,
+            acao="UPDATE",
+            recurso="CLIENTE",
+            recurso_id=id,
+            dados_antigos=dados_antigos,
+            dados_novos=cliente,
+            request=request,
+        )
 
         return cliente
 
