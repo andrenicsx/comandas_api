@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+from sqlalchemy import select
 
 # Schemas
 from domain.schemas.ClienteSchema import (
@@ -14,7 +15,7 @@ from domain.schemas.AuthSchema import FuncionarioAuth
 from infra.orm.ClienteModel import ClienteDB
 
 # Database
-from infra.database import get_db
+from infra.database import get_async_db
 from infra.dependencies import get_current_active_user, require_group
 from infra.rate_limit import limiter, get_rate_limit
 from services.AuditoriaService import AuditoriaService
@@ -31,17 +32,16 @@ router = APIRouter()
     
 )
 async def get_clientes(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(get_current_active_user),
 ):
     try:
-        clientes = db.query(ClienteDB).all()
+        result = await db.execute(select(ClienteDB))
+        clientes = result.scalars().all()
         return clientes
-
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao buscar clientes: {str(e)}"
+            status_code=500, detail=f"Erro ao buscar clientes: {str(e)}"
         )
 
 
@@ -54,20 +54,21 @@ async def get_clientes(
 )
 async def get_cliente(
     id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(get_current_active_user),
 ):
 
     try:
-        cliente = db.query(ClienteDB).filter(ClienteDB.id == id).first()
-
+        result = await db.execute(select(ClienteDB).where(ClienteDB.id == id))
+        cliente = result.scalar_one_or_none()
         if not cliente:
-            raise HTTPException(
-                status_code=404,
-                detail="Cliente não encontrado"
-            )
-
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
         return cliente
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar cliente: {str(e)}")
+
 
     except HTTPException:
         raise
@@ -87,45 +88,36 @@ async def get_cliente(
 )
 async def post_cliente(
     cliente_data: ClienteCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(require_group([1, 3])),
 ):
 
     try:
 
-        # verificar CPF duplicado
-        existing_cliente = db.query(ClienteDB).filter(
-            ClienteDB.cpf == cliente_data.cpf
-        ).first()
-
-        if existing_cliente:
+        # Verificar CPF duplicado (Assíncrono)
+        result = await db.execute(
+            select(ClienteDB).where(ClienteDB.cpf == cliente_data.cpf)
+        )
+        if result.scalar_one_or_none():
             raise HTTPException(
-                status_code=400,
-                detail="Já existe cliente com este CPF"
+                status_code=400, detail="Já existe cliente com este CPF"
             )
 
         novo_cliente = ClienteDB(
-            id=None,
-            nome=cliente_data.nome,
-            cpf=cliente_data.cpf,
-            telefone=cliente_data.telefone
+            nome=cliente_data.nome, cpf=cliente_data.cpf, telefone=cliente_data.telefone
         )
 
         db.add(novo_cliente)
-        db.commit()
-        db.refresh(novo_cliente)
-
+        await db.commit()
+        await db.refresh(novo_cliente)
         return novo_cliente
-
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao criar cliente: {str(e)}"
-        )
+        await db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao criar cliente: {str(e)}")
 
 
 # PUT CLIENTE
@@ -141,15 +133,14 @@ async def put_cliente(
     id: int,
     request: Request,
     cliente_data: ClienteUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(require_group([1, 3])),
 ):
 
     try:
 
-        cliente = db.query(ClienteDB).filter(
-            ClienteDB.id == id
-        ).first()
+        result = await db.execute(select(ClienteDB).where(ClienteDB.id == id))
+        cliente = result.scalar_one_or_none()
 
         if not cliente:
             raise HTTPException(
@@ -176,10 +167,10 @@ async def put_cliente(
         for field, value in update_data.items():
             setattr(cliente, field, value)
 
-        db.commit()
-        db.refresh(cliente)
+        await db.commit()
+        await db.refresh(cliente)
 
-        AuditoriaService.registrar_acao(
+        await AuditoriaService.registrar_acao(
             db=db,
             funcionario_id=current_user.id,
             acao="UPDATE",
@@ -188,7 +179,7 @@ async def put_cliente(
             dados_antigos=dados_antigos,
             dados_novos=cliente,
             request=request,
-        )
+        ) 
 
         return cliente
 
@@ -196,7 +187,7 @@ async def put_cliente(
         raise
     except Exception as e:
 
-        db.rollback()
+        await db.rollback()
 
         raise HTTPException(
             status_code=500,
@@ -214,7 +205,7 @@ async def put_cliente(
 
 async def delete_cliente(
     id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(require_group([1])),
 ):
     """Remove um cliente"""
@@ -230,8 +221,8 @@ async def delete_cliente(
                 detail="Cliente não encontrado"
             )
 
-        db.delete(cliente)
-        db.commit()
+        await db.delete(cliente)
+        await db.commit()
 
         return {"message": "Cliente deletado com sucesso"}
 
@@ -239,7 +230,7 @@ async def delete_cliente(
         raise
     except Exception as e:
 
-        db.rollback()
+        await db.rollback()
 
         raise HTTPException(
             status_code=500,

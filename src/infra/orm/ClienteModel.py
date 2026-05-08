@@ -11,8 +11,4 @@ class ClienteDB(database.Base):
     cpf = Column(CHAR(11), unique=True, nullable=False, index=True)
     telefone = Column(CHAR(11), nullable=False)
 
-    def __init__(self, id, nome, cpf, telefone):
-        self.id = id
-        self.nome = nome
-        self.cpf = cpf
-        self.telefone = telefone
+   

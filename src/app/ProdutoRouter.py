@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 from infra.rate_limit import limiter, get_rate_limit
 from services.AuditoriaService import AuditoriaService
@@ -17,7 +18,7 @@ from infra.orm.ProdutoModel import ProdutoDB
 from infra.dependencies import get_current_active_user, require_group
 
 # Database
-from infra.database import get_db
+from infra.database import get_async_db
 
 router = APIRouter()
 
@@ -28,10 +29,10 @@ router = APIRouter()
     tags=["Produto"],
     status_code=status.HTTP_200_OK
 )
-async def get_produtos(db: Session = Depends(get_db)):
+async def get_produtos(db: AsyncSession = Depends(get_async_db)):
     try:
-        produtos = db.query(ProdutoDB).all()
-        return produtos
+        result = await db.execute(select(ProdutoDB))
+        return result.scalars().all()
 
     except Exception as e:
         raise HTTPException(
@@ -47,12 +48,11 @@ async def get_produtos(db: Session = Depends(get_db)):
     tags=["Produto"],
     status_code=status.HTTP_200_OK
 )
-async def get_produto(id: int, db: Session = Depends(get_db)):
+async def get_produto(id: int, db: AsyncSession = Depends(get_async_db)):
 
     try:
-        produto = db.query(ProdutoDB).filter(
-            ProdutoDB.id == id
-        ).first()
+        result = await db.execute(select(ProdutoDB).where(ProdutoDB.id == id))
+        produto = result.scalar_one_or_none()
 
         if not produto:
             raise HTTPException(
@@ -80,14 +80,13 @@ async def get_produto(id: int, db: Session = Depends(get_db)):
 )
 async def post_produto(
     produto_data: ProdutoCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(require_group([1])),
 ):
 
     try:
 
         novo_produto = ProdutoDB(
-            id=None,
             nome=produto_data.nome,
             descricao=produto_data.descricao,
             foto=produto_data.foto,
@@ -95,14 +94,14 @@ async def post_produto(
         )
 
         db.add(novo_produto)
-        db.commit()
-        db.refresh(novo_produto)
+        await db.commit()
+        await db.refresh(novo_produto)
 
         return novo_produto
 
     except Exception as e:
 
-        db.rollback()
+        await db.rollback()
 
         raise HTTPException(
             status_code=500,
@@ -120,7 +119,7 @@ async def post_produto(
 async def put_produto(
     id: int,
     produto_data: ProdutoUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(require_group([1])),
 ):
 
@@ -141,8 +140,8 @@ async def put_produto(
         for field, value in update_data.items():
             setattr(produto, field, value)
 
-        db.commit()
-        db.refresh(produto)
+        await db.commit()
+        await db.refresh(produto)
 
         return produto
 
@@ -150,7 +149,7 @@ async def put_produto(
         raise
     except Exception as e:
 
-        db.rollback()
+        await db.rollback()
 
         raise HTTPException(
             status_code=500,
@@ -165,15 +164,14 @@ async def put_produto(
 async def delete_produto(
     id: int,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: FuncionarioAuth = Depends(require_group([1])),
 ):
 
     try:
 
-        produto = db.query(ProdutoDB).filter(
-            ProdutoDB.id == id
-        ).first()
+        result = await db.execute(select(ProdutoDB).where(ProdutoDB.id == id))
+        produto = result.scalar_one_or_none()
 
         if not produto:
             raise HTTPException(
@@ -182,10 +180,10 @@ async def delete_produto(
             )
 
         dados_antigos = produto.__dict__.copy()
-        db.delete(produto)
-        db.commit()
+        await db.delete(produto)
+        await db.commit()
 
-        AuditoriaService.registrar_acao(
+        await AuditoriaService.registrar_acao(
             db=db,
             funcionario_id=current_user.id,
             acao="DELETE",
@@ -201,7 +199,7 @@ async def delete_produto(
         raise
     except Exception as e:
 
-        db.rollback()
+        await db.rollback()
 
         raise HTTPException(
             status_code=500,

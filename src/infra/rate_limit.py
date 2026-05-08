@@ -13,6 +13,18 @@ load_dotenv()
 # Criar limiter com base no IP do cliente
 limiter = Limiter(key_func=get_remote_address)
 
+
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Muitas requisições",
+            "detail": f"Você ultrapassou o limite: {exc.detail}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+
 # Handler personalizado para exceção de rate limit
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
   """

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import text
 from datetime import datetime, timezone
 import psutil
-from infra.database import get_db
+from infra.database import get_async_db
 from infra.orm.FuncionarioModel import FuncionarioDB
 
 router = APIRouter()
@@ -190,7 +190,7 @@ async def full_health_check():
   
   except Exception as e:
     raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Full health check failed: {str(e)}")
-  
+
 # Readiness probe - Verifica se API está pronta para receber tráfego - Similar ao health mas pode incluir verificações adicionais
 @router.get("/ready", tags=["Health"], summary="Readiness probe - Verifica se API está pronta para receber tráfego - Similar ao health mas pode incluir verificações adicionais")
 async def readiness_check():

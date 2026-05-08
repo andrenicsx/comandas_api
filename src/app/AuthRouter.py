@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from datetime import timedelta
 from domain.schemas.AuthSchema import (
     LoginRequest,
@@ -7,8 +8,24 @@ from domain.schemas.AuthSchema import (
     RefreshTokenRequest,
     FuncionarioAuth,
 )
+
+from datetime import timedelta
+from domain.schemas.AuthSchema import (
+    LoginRequest,
+    TokenResponse,
+    RefreshTokenRequest,
+    FuncionarioAuth,
+)
+
+from infra.security import (
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    verify_refresh_token,
+)
+
 from infra.orm.FuncionarioModel import FuncionarioDB
-from infra.database import get_db
+from infra.database import get_async_db
 from infra.security import (
     verify_password,
     create_access_token,
@@ -24,8 +41,8 @@ router = APIRouter()
 
 @router.post("/auth/login", response_model=TokenResponse, tags=["Autenticação"], summary="Login de funcionário - pública - retorna access e refresh token")
 @limiter.limit(get_rate_limit("light"))
-async def login(login_data: LoginRequest, request: Request, db: Session = Depends(get_db)):
-  """
+async def login(login_data: LoginRequest, request: Request, db: AsyncSession = Depends(get_async_db)):
+    """
   Realiza login do funcionário e retorna access token e refresh token
 
   - **cpf**: CPF do funcionário             
@@ -35,30 +52,39 @@ async def login(login_data: LoginRequest, request: Request, db: Session = Depend
   - access_token: Token de curta duração (15 minutos) 
   - refresh_token: Token de longa duração (7 dias)
   """
-  try:
-    # Busca funcionário pelo CPF
-    funcionario = db.query(FuncionarioDB).filter(FuncionarioDB.cpf == login_data.cpf).first()
+    try:
+        # Busca funcionário pelo CPF
+        result = await db.execute(select(FuncionarioDB).where(FuncionarioDB.cpf == login_data.cpf))
+        funcionario = result.scalar_one_or_none()
 
-    if not funcionario:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="CPF ou senha inválidos", headers={"WWW-Authenticate": "Bearer"}, )
-    
-    # Verifica se a senha está correta
-    if not verify_password(login_data.senha, funcionario.senha):
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="CPF ou senha inválidos", headers={"WWW-Authenticate": "Bearer"}, )
-    
-    # Cria o access token JWT (curta duração)
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-      data={
-        "sub": funcionario.cpf, # subject = CPF
-        "id": funcionario.id, # ID do funcionário
-        "grupo": funcionario.grupo
-      },
-      expires_delta=access_token_expires
-    )
+        if not funcionario:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="CPF ou senha inválidos",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
-    # Cria o refresh token JWT (longa duração)
-    refresh_token = create_refresh_token(
+        # Verifica se a senha está correta
+        if not verify_password(login_data.senha, funcionario.senha):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="CPF ou senha inválidos",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Cria o access token JWT (curta duração)
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={
+                "sub": funcionario.cpf,  # subject = CPF
+                "id": funcionario.id,  # ID do funcionário
+                "grupo": funcionario.grupo,
+            },
+            expires_delta=access_token_expires,
+        )
+
+        # Cria o refresh token JWT (longa duração)
+        refresh_token = create_refresh_token(
       data={
         "sub": funcionario.cpf, # subject = CPF
         "id": funcionario.id, # ID do funcionário
@@ -66,8 +92,8 @@ async def login(login_data: LoginRequest, request: Request, db: Session = Depend
       }
     )
 
-    # Registrar auditoria de login
-    AuditoriaService.registrar_acao(
+        # Registrar auditoria de login
+        await AuditoriaService.registrar_acao(
       db=db,
       funcionario_id=funcionario.id,
       acao="LOGIN",
@@ -75,21 +101,21 @@ async def login(login_data: LoginRequest, request: Request, db: Session = Depend
       request=request
     )
 
-    return TokenResponse(
+        return TokenResponse(
       access_token=access_token,
       refresh_token=refresh_token,
       token_type="bearer",
       expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # em segundos
       refresh_expires_in=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 # em segundos
     )
-  
-  except HTTPException:
-    raise
-  except Exception as e:
-    raise HTTPException( status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao realizar login: {str(e)}" )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException( status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao realizar login: {str(e)}" )
 
 @router.post("/auth/refresh", response_model=TokenResponse, tags=["Autenticação"], summary="Refresh token - pública - renova access token")
-async def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends(get_db)):
+async def refresh_token(refresh_data: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db)):
   """
   Renova o access token usando um refresh token válido
 
@@ -103,7 +129,8 @@ async def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends
 
     # Busca funcionário para garantir que ainda existe
     cpf = payload.get("sub")
-    funcionario = db.query(FuncionarioDB).filter(FuncionarioDB.cpf == cpf).first()
+    result = await db.execute(select(FuncionarioDB).where(FuncionarioDB.cpf == cpf))
+    funcionario = result.scalar_one_or_none()
 
     if not funcionario:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Funcionário não encontrado", headers={"WWW-Authenticate": "Bearer"}, )
