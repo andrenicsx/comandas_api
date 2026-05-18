@@ -7,32 +7,107 @@ GET http://localhost:8000/funcionario/10 HTTP/1.1
 ### Verbo POST – adicionar
 POST http://127.0.0.1:8000/funcionario/ HTTP/1.1
 content-type: application/json
+Authorization: Bearer {{access_token}}
 
 {
-  "nome": "André Coelho",
+  "nome": "ADMIN",
   "matricula": "an1234",
   "cpf": "1",
   "telefone": "tel12345678",
   "grupo": 1,
-  "senha": "abcdefghijkl"
+  "senha": "123456"
 }
+### token gerado
+@acess_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMzMzMzMzMzMzMyIsImlkIjozLCJncnVwbyI6MywiZXhwIjoxNzc0ODM5OTI5LCJ0eXBlIjoiYWNjZXNzIn0.tm7l3F5fMP-OUyPYTMY2J0OgApYJKQJ5hKNzGoWy0L4
+
+
+### Verbo PUT – atualiza
+PUT http://127.0.0.1:8000/funcionario/4 HTTP/1.1
+content-type: application/json
+
+{
+   "nome": "ADMIN",
+    "matricula": "M001",
+    "cpf": "11111111111",
+    "telefone": "4988887777",
+    "grupo": 1,
+    "senha": "123456"
+}
+
+### Verbo DELETE - excluir
+DELETE http://127.0.0.1:8000/funcionario/1 HTTP/1.1
+
+### Verbo GET - listar todos
+GET http://localhost:8000/funcionario/ HTTP/1.1
+
+### Criar Funcionário do Grupo 3 (Caixa)
+POST http://localhost:8000/funcionario/
+Content-Type: application/json
+
+{
+    "nome": "Marcos Caixa",
+    "matricula": "CX001",
+    "cpf": "33333333333",
+    "telefone": "4988887777",
+    "grupo": 3,
+    "senha": "senha_caixa_abc"
+}
+
+### Login para obter access e refresh tokens
+POST http://127.0.0.1:8000/auth/login HTTP/1.1
+content-type: application/json
+
+{
+"cpf" : "12345678902",
+"senha" : "123456"
+}
+
+### token gerado
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMTExMSIsImlkIjoxLCJncnVwbyI6MSwiZXhwIjoxNzc0ODI2OTY0LCJ0eXBlIjoiYWNjZXNzIn0.4OrcIXF1EKutCOxR4VRs7bETEjbG7-O3-2DX_2O40BM
+
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwMiIsImlkIjo0LCJncnVwbyI6MSwiZXhwIjoxNzc1NDQ2ODMxLCJ0eXBlIjoicmVmcmVzaCJ9.lpbZMMSNsIYRG3xPxq8Hz3Li7k6UM5-2Pg-6qLGRPFo
+
+### testar access token para acessar endpoint protegido
+GET http://127.0.0.1:8000/auth/me HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+
+### token gerado
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMTExMSIsImlkIjoxLCJncnVwbyI6MSwiZXhwIjoxNzc0ODI2OTY0LCJ0eXBlIjoiYWNjZXNzIn0.4OrcIXF1EKutCOxR4VRs7bETEjbG7-O3-2DX_2O40BM
+
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMTExMSIsImlkIjoxLCJncnVwbyI6MSwiZXhwIjoxNzc1NDMwODY0LCJ0eXBlIjoicmVmcmVzaCJ9.0eheaI8pJGUhwM7Z0I0A3TVg9daCcUp3WmTygADSP-A
+
+### Usar refresh token para obter novos tokens
+POST http://localhost:8000/auth/refresh
+Content-Type: application/json
+
+{
+"refresh_token": "{{refresh_token}}"
+}
+
+# token
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMTExMSIsImlkIjoxLCJncnVwbyI6MSwiZXhwIjoxNzc0ODM1Nzg1LCJ0eXBlIjoiYWNjZXNzIn0.avYNt3gVUIE7I1UuP_KCaUHT6_ewlpKIuE2jXvVu4rI
+
+### Verbo GET – listar todos
+GET http://localhost:8000/funcionario/ HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+### Verbo GET – listar um
+GET http://localhost:8000/funcionario/2 HTTP/1.1
+Authorization: Bearer {{access_token}}
 
 ### Verbo PUT – atualiza
 PUT http://127.0.0.1:8000/funcionario/2 HTTP/1.1
 content-type: application/json
+Authorization: Bearer {{access_token}}
 
 {
-  "nome": "André Coelho",
-  "matricula": "an1234",
-  "cpf": "1",
-  "telefone": "tel2383738",
-  "grupo": 1,
-  "senha": "dc7378a6b6316017b81c51d720e7"
+"nome" : "André Coelho atualizado"
 }
 
 ### Verbo DELETE - excluir
-DELETE http://127.0.0.1:8000/funcionario/3 HTTP/1.1
+DELETE http://127.0.0.1:8000/funcionario/1 HTTP/1.1
+Authorization: Bearer {{access_token}}
 
-### Verbo GET - listar todos
-GET http://localhost:8000/funcionario/ HTTP/1.1
+
 
