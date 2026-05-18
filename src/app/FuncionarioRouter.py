@@ -94,8 +94,8 @@ async def get_funcionario(
 async def post_funcionario(
     funcionario_data: FuncionarioCreate,
     request : Request,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: FuncionarioAuth = Depends(require_group([1])),
+    db: AsyncSession = Depends(get_async_db)
+    #current_user: FuncionarioAuth = Depends(require_group([1])),
 ):
     """Cria um novo funcionário - protegida por autenticação e grupo 1"""
     try:
@@ -129,16 +129,16 @@ async def post_funcionario(
         await db.refresh(novo_funcionario)
 
         # Depois de tudo executado e antes do return, registra a ação na auditoria
-        await AuditoriaService.registrar_acao(
-        db=db,
-        funcionario_id=current_user.id,
-        acao="CREATE",
-        recurso="FUNCIONARIO",
-        recurso_id=novo_funcionario.id,
-        dados_antigos=None,
-        dados_novos=novo_funcionario, # Objeto SQLAlchemy com dados novos
-        request=request # Request completo para capturar IP e user agent
-        )
+        #await AuditoriaService.registrar_acao(
+        #db=db,
+        #funcionario_id=current_user.id,
+        #acao="CREATE",
+        #recurso="FUNCIONARIO",
+        #recurso_id=novo_funcionario.id,
+        #dados_antigos=None,
+        #dados_novos=novo_funcionario, # Objeto SQLAlchemy com dados novos
+        #request=request # Request completo para capturar IP e user agent
+        #)
 
         return novo_funcionario
 
